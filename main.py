@@ -17,17 +17,20 @@ def serial_thread():
 
     while True:
         if ser.in_waiting > 0:
-            light_reading = ser.readline().decode('utf-8').rstrip()
-            if (light_reading.isalnum()):
-                new_state = int(light_reading) < light_threshold
-                if (current_state == None):
-                    current_state = new_state
-                    print("Initial light state: " + str(new_state))
-                    continue
+            try:
+                light_reading = ser.readline().decode('utf-8').rstrip()
+                if (light_reading.isalnum()):
+                    new_state = int(light_reading) < light_threshold
+                    if (current_state == None):
+                        current_state = new_state
+                        print("Initial light state: " + str(new_state))
+                        continue
 
-                if new_state != current_state:
-                    print("Light state changed to: " + str(new_state))
-                    current_state = new_state
+                    if new_state != current_state:
+                        print("Light state changed to: " + str(new_state))
+                        current_state = new_state
+            except UnicodeDecodeError:
+                pass
 
 def exit_handler():
     print("Cleaning up...")
@@ -42,19 +45,32 @@ def move_steps(steps: int):
         last_state = current_state
         while (current_state == last_state):
             GPIO.output(motor, GPIO.HIGH)
-            time.sleep(0.1)
+            # time.sleep(0.1)
 
         GPIO.output(motor, GPIO.LOW)
+
+def initialize_position(current_clock_minute):
+    current_minute_of_day = int(time.strftime("%H")) * 60 + int(time.strftime("%M"))
+    steps = current_minute_of_day - current_clock_minute
+    print("Moving " + str(steps) + " steps to initialize the clock to " + str(current_clock_minute) + " minutes")
+    move_steps(steps)
+
 
 def clock_motor_thread():
     while True:
         start_time = time.time()
         move_steps(2)
         end_time = time.time()
-        
-        time.sleep(60 - (end_time - start_time))
+
+        diff = 10 - (end_time - start_time)
+
+        if diff > 0:
+            time.sleep(diff)
+        else:
+            print("Motor took too long to move. Maybe a sensor error?")
 
 if __name__ == '__main__':
     atexit.register(exit_handler)
     threading.Thread(target=serial_thread).start()
+    initialize_position(120) # 2 am
     threading.Thread(target=clock_motor_thread).start()
