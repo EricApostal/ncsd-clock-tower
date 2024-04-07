@@ -29,16 +29,6 @@ def serial_thread():
                     print("Light state changed to: " + str(new_state))
                     current_state = new_state
 
-def yield_until_state_change():
-    while current_state == None:
-        time.sleep(0.1)
-
-    while True:
-        if current_state == True:
-            time.sleep(0.1)
-        else:
-            break
-
 def exit_handler():
     print("Cleaning up...")
     GPIO.cleanup()
