@@ -1,6 +1,6 @@
 # How to run
 ```bash
-scp main.py root@10.50.60.181:/home/pi/Desktop
+scp ncssm_clock.py root@10.50.60.181:/home/pi/Desktop
 ```
 
 # Logic

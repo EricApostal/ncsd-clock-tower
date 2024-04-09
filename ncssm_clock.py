@@ -1,5 +1,6 @@
 import RPi.GPIO as GPIO
 import time, serial, threading, atexit
+import sys
 
 ser = serial.Serial('/dev/serial/by-id/usb-Arduino__www.arduino.cc__0042_85734323430351600190-if00', 9600, timeout=1)
 ser.reset_input_buffer()
@@ -45,16 +46,21 @@ def move_steps(steps: int):
         last_state = current_state
         while (current_state == last_state):
             GPIO.output(motor, GPIO.HIGH)
-            # time.sleep(0.1)
 
         GPIO.output(motor, GPIO.LOW)
 
-def initialize_position(current_clock_minute):
+def initialize_position():
+    print("""
+    What is the minute currently displayed on the clock? Enter this relative to it being in the morning / afternoon.
+          
+    Ex: If the clock is displaying 9:00, enter 540 (9 hours * 60 minutes / hour)
+    """)
+    
+    current_clock_minute = input("[USER]: ")
     current_minute_of_day = int(time.strftime("%H")) * 60 + int(time.strftime("%M"))
     steps = current_minute_of_day - current_clock_minute
     print("Moving " + str(steps) + " steps to initialize the clock to " + str(current_clock_minute) + " minutes")
     move_steps(steps)
-
 
 def clock_motor_thread():
     while True:
@@ -70,7 +76,13 @@ def clock_motor_thread():
             print("Motor took too long to move. Maybe a sensor error?")
 
 if __name__ == '__main__':
-    atexit.register(exit_handler)
-    threading.Thread(target=serial_thread).start()
-    initialize_position(120) # 2 am
-    threading.Thread(target=clock_motor_thread).start()
+    if (len(sys.argv) > 2):
+        ValueError("Usage: python3 main.py -c (pass -c if you want to callibrate, otherwise leave blank)")
+    if (sys.argv[0] == "-c"):
+        print("Calibrating...")
+        initialize_position()
+    else:
+        print("Starting clock...")
+        atexit.register(exit_handler)
+        threading.Thread(target=serial_thread).start()
+        threading.Thread(target=clock_motor_thread).start()
