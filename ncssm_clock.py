@@ -25,11 +25,11 @@ def serial_thread():
                     new_state = int(light_reading) < light_threshold
                     if (current_state == None):
                         current_state = new_state
-                        print("Initial light state: " + str(new_state))
+                        # print("Initial light state: " + str(new_state))
                         continue
 
                     if new_state != current_state:
-                        print("Light state changed to: " + str(new_state))
+                        # print("Light state changed to: " + str(new_state))
                         current_state = new_state
             except UnicodeDecodeError:
                 pass
@@ -114,25 +114,23 @@ def initialize_position():
 
     current_clock_minute = str(input("[USER]: "))
     current_clock_minute = _sanitize_minute(int(current_clock_minute.split(":")[0]) * 60 + int(current_clock_minute.split(":")[1]))
-    print("Current clock minute: " + str(current_clock_minute))
+    # print("Current clock minute: " + str(current_clock_minute))
     _set_current_step(current_clock_minute * 2)
 
-    print("Current step: " + str(current_step))
+   #  print("Current step: " + str(current_step))
     
     steps_to_move = _calculate_steps(current_step/2, current_minute_of_day)
     print("Steps to move: " + str(steps_to_move))
-    print("Current clock minute: " + str(current_step/2))
-    print("Target clock minute: " + str(current_clock_minute))
+    # print("Current clock minute: " + str(current_step/2))
+    # print("Target clock minute: " + str(current_clock_minute))
 
     # while current_step != current_clock_minute * 2:
-    # target_steps = 2
+    target_steps = 2
 
-    # while int(target_steps) > 1:
-    #     target_steps = _calculate_steps(current_step, current_minute_of_day * 2)
-    #     print("The clock is not displaying the correct time, moving " + str(target_steps) + " steps to correct it")
-    #     print(current_step / 2)
-    #     print(current_clock_minute)
-    #     move_steps(target_steps)
+    while int(target_steps) > 1:
+        target_steps = _calculate_steps(current_step / 2, current_minute_of_day)
+        print("The clock is not displaying the correct time, moving " + str(target_steps) + " steps to correct it")
+        move_steps(target_steps)
 
     print("Clock has been calibrated to " + str(current_clock_minute) + " minutes")
 
@@ -170,6 +168,7 @@ if __name__ == '__main__':
     atexit.register(exit_handler)
     # init_last_state_file()
     threading.Thread(target=serial_thread).start()
+    time.sleep(1)
 
     if (len(sys.argv) == 2 and sys.argv[1] == "-c"):
         print("Calibrating...")
