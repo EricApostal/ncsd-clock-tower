@@ -4,8 +4,6 @@ import time, serial, threading, atexit, sys, os
 ser = serial.Serial('/dev/serial/by-id/usb-Arduino__www.arduino.cc__0042_85734323430351600190-if00', 9600, timeout=1)
 ser.reset_input_buffer()
 
-close_threads = False
-
 GPIO.setwarnings(False)
 
 # The light value that will signal a change in state
@@ -13,19 +11,22 @@ light_threshold = 300
 current_step = 0
 
 # this should be 60, but it might be nice to set lower for testing
-minute_seconds = 10
+minute_seconds = 60
 
 current_state = None
+
+program_running = True
+_serial = None
 
 """
 Listens for raw analog light resistance values from the Arduino
 """
 def serial_thread():
-    global current_state
+    global current_state, program_running
 
     while True:
-        if(close_threads):
-            sys.exit()
+        if (not program_running):
+            return
 
         if ser.in_waiting > 0:
             try:
@@ -40,11 +41,11 @@ def serial_thread():
                     if new_state != current_state:
                         # print("Light state changed to: " + str(new_state))
                         current_state = new_state
-            except UnicodeDecodeError:
+            except:
                 pass
 
 def exit_handler():
-    print("Cleaning up...")
+    print("    Cleaning up...")
     GPIO.cleanup()
 
 def init_last_step_file():
@@ -70,6 +71,10 @@ Move the motor a certain number of steps
 Each step represents 30 seconds
 """
 def move_steps(steps: int):
+    timeout = 0.5
+    if (int(steps) == 0):
+        return
+    
     global current_step
 
     motor = 11
@@ -78,14 +83,19 @@ def move_steps(steps: int):
     GPIO.setup(motor, GPIO.OUT)
     for _ in range(int(steps)):
         last_state = current_state
+        started_moving_time = time.time()
         while (current_state == last_state):
+            if (time.time() - started_moving_time) >= timeout:
+                print("Step move timed out. This is bad, the light sensor is probably misreading.")
+                break
+
             GPIO.output(motor, GPIO.HIGH)
-            time.sleep(0.01)
+
         current_step += 1
 
-        # 720 is the number of steps in 12 hours
-        # Once we reach 720, we're back at 12:00
-        if (current_step == 720):
+        # 1440 is the number of steps in 12 hours
+        # Once we reach 1440, we're back at 12:00
+        if (current_step == 1440):
             current_step = 0
 
         write_last_step(current_step)
@@ -107,7 +117,7 @@ def initialize_position():
     global current_step
 
     print("""
-    What time does the clock currently display? Do not include AM/PM units.
+    What time does the clock tower currently display? Do not include AM/PM units.
     Ex: 9:32
     """)
     current_minute_of_day = _sanitize_minute(int(time.strftime("%H")) * 60 + int(time.strftime("%M")))
@@ -120,17 +130,20 @@ def initialize_position():
     current_clock_minute = str(input("    [USER]: "))
     current_clock_minute = _sanitize_minute(int(current_clock_minute.split(":")[0]) * 60 + int(current_clock_minute.split(":")[1]))
 
-    current_step = _sanitize_minute(current_clock_minute * 2)
+    current_step = _sanitize_minute(current_clock_minute) * 2
 
     steps_to_move = _calculate_steps(current_step/2, current_minute_of_day)
-    print("    [Initialization] Steps to move: " + str(steps_to_move))
+    if (int(steps_to_move) != 0):
+        print("    [Initialization] Steps to move: " + str(steps_to_move))
 
-    target_steps = 2
+        target_steps = 2
 
-    while int(target_steps) > 1:
-        # print("The clock is not displaying the correct time, moving " + str(target_steps) + " steps to correct it")
-        move_steps(target_steps)
-        target_steps = _calculate_steps(current_step / 2, current_minute_of_day)
+        while int(target_steps) > 0:
+            # print("The clock is not displaying the correct time, moving " + str(target_steps) + " steps to correct it")
+            move_steps(target_steps)
+            target_steps = _calculate_steps(current_step / 2, current_minute_of_day)
+        
+        print(target_steps)
 
     new_hour = int(current_minute_of_day / 60)
     new_minute = current_minute_of_day % 60
@@ -164,37 +177,41 @@ def boot_recalibrate():
     print("Last step: " + str(current_step))
     current_minute_of_day = int(time.strftime("%H")) * 60 + int(time.strftime("%M"))
     target_step = _sanitize_minute(current_minute_of_day) * 2
+    print("Target step: " + str(target_step))
     step_count = _calculate_steps(current_step, target_step)
     print("Recalibrating to step: " + str(target_step) + " with " + str(step_count) + " steps")
     move_steps(step_count)
 
 def spawn_user_menu():
+    global program_running
+
     os.system('clear')
-    print("""
-    _   _  _____  _____ _____     _____ _      ____   _____ _  __  _______ ______          ________ _____  
-    | \ | |/ ____|/ ____|  __ \   / ____| |    / __ \ / ____| |/ / |__   __/ __ \ \        / /  ____|  __ \ 
-    |  \| | |    | (___ | |  | | | |    | |   | |  | | |    | ' /     | | | |  | \ \  /\  / /| |__  | |__) |
-    | . ` | |     \___ \| |  | | | |    | |   | |  | | |    |  <      | | | |  | |\ \/  \/ / |  __| |  _  / 
-    | |\  | |____ ____) | |__| | | |____| |___| |__| | |____| . \     | | | |__| | \  /\  /  | |____| | \ \ 
-    |_| \_|\_____|_____/|_____/   \_____|______\____/ \_____|_|\_\    |_|  \____/   \/  \/   |______|_|  \_\                                                                                                                                                                                             
-    
+    print(r"""
+    _   _  _____  _____ _____      _____ _      ____   _____ _  __
+    | \ | |/ ____|/ ____|  __ \    / ____| |    / __ \ / ____| |/ /
+    |  \| | |    | (___ | |  | |  | |    | |   | |  | | |    | ' / 
+    | . ` | |     \___ \| |  | |  | |    | |   | |  | | |    |  <  
+    | |\  | |____ ____) | |__| |  | |____| |___| |__| | |____| . \ 
+    |_| \_|\_____|_____/|_____/    \_____|______\____/ \_____|_|\_\
+          
     Powered by NCSSM
     """)
     print("""
     Welcome to the clock control panel. What would you like to do?
     [1] Calibrate the clock
     [2] Just start the clock
-          
+    """)
+
+    """
     Info:
     (1) Calibrating the clock will allow you to set the clock to a certain time. You should ideally only have to do this once ever.
-    (2) Starting the clock will just start the clock from the last known position. While you can start it manually, it should
-    already be running right now.
-    """)
+    (2) Starting the clock will just start the clock from the last known position. While you can start it manually, it should already be running right now.
+    """
 
     acceptable_input = ["1", "2"]
     user_input = input("    [USER]: ")
 
-    if user_input not in acceptable_input:
+    while user_input not in acceptable_input:
         print("    Invalid input. Please try again.")
         user_input = input("    [USER]: ")
     
@@ -205,24 +222,27 @@ def spawn_user_menu():
         GPIO.cleanup()
         os.system('sudo systemctl start clock.service')
         print("    Clock has been calibrated! You can close this now.")
-        return
     else:
-        try:
-            os.system('sudo systemctl start clock.service')
-            print("    Started clock service!")
-        except:
-            print("    Error starting clock service. Assuming it's enabled already.")
+        os.system('sudo systemctl restart clock.service')
+        print("    Started clock service!")
+        
+        print("    Error starting clock service. Assuming it's enabled already.")
         print("    Service is running! You can close this now. Feel free to check on the service by running 'sudo systemctl status clock.service'.")
 
+    program_running = False
+    _serial.join()
+
 if __name__ == '__main__':
+    print("Starting clock...")
     if (len(sys.argv) > 2):
         ValueError("Usage: python3 main.py -c (pass -c if you want to callibrate, otherwise leave blank)")
 
     atexit.register(exit_handler)
     init_last_step_file()
 
-    serial_thread = threading.Thread(target=serial_thread)
-    serial_thread.start()
+    _serial = threading.Thread(target=serial_thread)
+    _serial.start()
+    
     time.sleep(1)
 
     if (len(sys.argv) == 2):
