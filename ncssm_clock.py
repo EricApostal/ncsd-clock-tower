@@ -82,16 +82,13 @@ def move_steps(steps: int):
             GPIO.output(motor, GPIO.HIGH)
             time.sleep(0.01)
         current_step += 1
-        print("stepped")
 
         # 720 is the number of steps in 12 hours
         # Once we reach 720, we're back at 12:00
         if (current_step == 720):
             current_step = 0
 
-        print("writing last step")
         write_last_step(current_step)
-        print("wrote last step")
 
     GPIO.output(motor, GPIO.LOW)
 
