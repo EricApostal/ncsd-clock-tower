@@ -146,11 +146,12 @@ def clock_motor_thread():
     while True:
         target_minute = _sanitize_minute(int(time.strftime("%H")) * 60 + int(time.strftime("%M")))
         step_count = _calculate_steps(current_step/2, target_minute)
+
         if (step_count > 0):
             print("Moving " + str(step_count) + " steps")
             move_steps(step_count)
-            time.sleep(0.1)
 
+        time.sleep(0.1)
 
 """
 Takes the last known step and moves the hand to where it should be
