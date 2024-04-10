@@ -1,3 +1,9 @@
+# The light value that will signal a change in state
+light_threshold = 300
+
+# this should be 60, but it might be nice to set lower for testing
+minute_seconds = 60
+
 import RPi.GPIO as GPIO
 import time, serial, threading, atexit, sys, os
 
@@ -6,15 +12,8 @@ ser.reset_input_buffer()
 
 GPIO.setwarnings(False)
 
-# The light value that will signal a change in state
-light_threshold = 300
 current_step = 0
-
-# this should be 60, but it might be nice to set lower for testing
-minute_seconds = 60
-
 current_state = None
-
 program_running = True
 _serial = None
 
@@ -44,6 +43,9 @@ def serial_thread():
             except:
                 pass
 
+"""
+Runs on program exit. Used to prevent potential GPIO errors.
+"""
 def exit_handler():
     print("    Cleaning up...")
     GPIO.cleanup()
@@ -108,6 +110,9 @@ def move_steps(steps: int):
     GPIO.output(motor, GPIO.LOW)
 
 def _sanitize_minute(minute: int):
+    # we want to translate every time to a 12 hour scale to prevent excess
+    # movement (since a clock only has 12 hours, and a day has 24)
+
     if (minute >= 720):
         minute -= 720
     return minute
@@ -157,36 +162,35 @@ def initialize_position():
 def clock_motor_thread():
     # time.sleep(minute_seconds)
     while True:
-        start_time = time.time()
-        move_steps(2)
-        end_time = time.time()
+        # move_steps(2)
 
-        diff = minute_seconds - (end_time - start_time)
+        # last_minute = int(time.strftime("%M"))
+        # while (int(time.strftime("%M")) == last_minute):
+        #     time.sleep(0.1)
+        
+        target_minute = _sanitize_minute(int(time.strftime("%H")) * 60 + int(time.strftime("%M")))
+        step_count = _calculate_steps(current_step/2, target_minute)
+        if (step_count > 0):
+            print("Moving " + str(step_count) + " steps")
+            move_steps(step_count)
+            time.sleep(0.1)
 
-        if diff > 0:
-            time.sleep(diff)
-        else:
-            print("""Motor took too long to move. Maybe a sensor error?
-                  This error is critical! My guess as to what happened is that
-                  the sensor isn't reading properly, so it thinks nothing has moved.
-                  """)
 
 """
-last_state represents the last step
-find the step we are on, and move the motor to that step
+Takes the last known step and moves the hand to where it should be
 """
 def boot_recalibrate():
     global current_step
 
     current_step = read_last_step()
-    print("Last step: " + str(current_step))
-    current_minute_of_day = int(time.strftime("%H")) * 60 + int(time.strftime("%M"))
-    target_minute = _sanitize_minute(current_minute_of_day)
-    target_step = target_minute * 2
-    print("Target minute: " + str(target_minute))
-    step_count = _calculate_steps(current_step/2, target_minute)
-    print("Recalibrating to step: " + str(target_step) + " with " + str(step_count) + " steps")
-    move_steps(step_count)
+    # print("Last step: " + str(current_step))
+    # current_minute_of_day = int(time.strftime("%H")) * 60 + int(time.strftime("%M"))
+    # target_minute = _sanitize_minute(current_minute_of_day)
+    # target_step = target_minute * 2
+    # print("Target minute: " + str(target_minute))
+    # step_count = _calculate_steps(current_step/2, target_minute)
+    # print("Recalibrating to step: " + str(target_step) + " with " + str(step_count) + " steps")
+    # move_steps(step_count)
 
 def spawn_user_menu():
     global program_running
