@@ -51,11 +51,9 @@ def exit_handler():
 def init_last_step_file():
     try:
         with open("/home/pi/Documents/last_step.txt", "r") as f:
-            print("Last step file already exists")
             return
     except FileNotFoundError:
         with open("/home/pi/Documents/last_step.txt", "w") as f:
-            print("Last step file created")
             f.write("0")
 
 def write_last_step(state: int):
@@ -88,6 +86,7 @@ def move_steps(steps: int):
             if (time.time() - started_moving_time) >= timeout:
                 print("Step move timed out. This is bad, the light sensor is probably misreading.")
                 break
+            time.sleep(0.1)
 
             GPIO.output(motor, GPIO.HIGH)
 
@@ -98,6 +97,12 @@ def move_steps(steps: int):
         if (current_step == 1440):
             current_step = 0
 
+        _curr_min = str(int(current_step / 2 % 60))
+        if (len(_curr_min) == 1):
+            _curr_min = "0" + _curr_min
+
+        step_time_formatted = str(int(current_step / 2 / 60)) + ":" + _curr_min
+        print("Moved to time " + str(step_time_formatted))
         write_last_step(current_step)
 
     GPIO.output(motor, GPIO.LOW)
@@ -150,7 +155,7 @@ def initialize_position():
     print("    Clock has been calibrated to " + str(new_hour) + ":" + str(new_minute))
 
 def clock_motor_thread():
-    time.sleep(minute_seconds)
+    # time.sleep(minute_seconds)
     while True:
         start_time = time.time()
         move_steps(2)
@@ -176,9 +181,10 @@ def boot_recalibrate():
     current_step = read_last_step()
     print("Last step: " + str(current_step))
     current_minute_of_day = int(time.strftime("%H")) * 60 + int(time.strftime("%M"))
-    target_step = _sanitize_minute(current_minute_of_day) * 2
-    print("Target step: " + str(target_step))
-    step_count = _calculate_steps(current_step, target_step)
+    target_minute = _sanitize_minute(current_minute_of_day)
+    target_step = target_minute * 2
+    print("Target minute: " + str(target_minute))
+    step_count = _calculate_steps(current_step/2, target_minute)
     print("Recalibrating to step: " + str(target_step) + " with " + str(step_count) + " steps")
     move_steps(step_count)
 
@@ -195,6 +201,7 @@ def spawn_user_menu():
     |_| \_|\_____|_____/|_____/    \_____|______\____/ \_____|_|\_\
           
     Powered by NCSSM
+    Programmed by Eric Apostal
     """)
     print("""
     Welcome to the clock control panel. What would you like to do?
