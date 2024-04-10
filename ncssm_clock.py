@@ -1,7 +1,7 @@
 # The light value that will signal a change in state
 light_threshold = 300
 
-# this should be 60, but it might be nice to set lower for testing
+# This should be 60, but it might be nice to set lower for testing
 minute_seconds = 60
 
 import RPi.GPIO as GPIO
@@ -130,7 +130,7 @@ def initialize_position():
     What time does the clock tower currently display? Do not include AM/PM units.
     Ex: 9:32
     """)
-    
+
     current_minute_of_day = _sanitize_minute(int(time.strftime("%H")) * 60 + int(time.strftime("%M")))
 
     current_clock_minute = str(input("    [USER]: "))
@@ -159,14 +159,6 @@ def boot_recalibrate():
     global current_step
 
     current_step = read_last_step()
-    # print("Last step: " + str(current_step))
-    # current_minute_of_day = int(time.strftime("%H")) * 60 + int(time.strftime("%M"))
-    # target_minute = _sanitize_minute(current_minute_of_day)
-    # target_step = target_minute * 2
-    # print("Target minute: " + str(target_minute))
-    # step_count = _calculate_steps(current_step/2, target_minute)
-    # print("Recalibrating to step: " + str(target_step) + " with " + str(step_count) + " steps")
-    # move_steps(step_count)
 
 def spawn_user_menu():
     global program_running
