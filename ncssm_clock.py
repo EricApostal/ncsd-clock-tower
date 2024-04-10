@@ -249,8 +249,6 @@ if __name__ == '__main__':
 
     _serial = threading.Thread(target=serial_thread)
     _serial.start()
-    
-    time.sleep(1)
 
     if (len(sys.argv) == 2):
         if (sys.argv[1] == "-c"):
