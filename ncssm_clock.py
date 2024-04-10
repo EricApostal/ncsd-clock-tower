@@ -130,44 +130,20 @@ def initialize_position():
     What time does the clock tower currently display? Do not include AM/PM units.
     Ex: 9:32
     """)
+    
     current_minute_of_day = _sanitize_minute(int(time.strftime("%H")) * 60 + int(time.strftime("%M")))
-
-    # If the current time is past noon, subtract 720 minutes to get the time in the morning
-    # This prevents us from forcing the clock to make two rotations
-    if (current_minute_of_day > 720):
-        current_minute_of_day -= 720
 
     current_clock_minute = str(input("    [USER]: "))
     current_clock_minute = _sanitize_minute(int(current_clock_minute.split(":")[0]) * 60 + int(current_clock_minute.split(":")[1]))
 
-    current_step = _sanitize_minute(current_clock_minute) * 2
-
-    steps_to_move = _calculate_steps(current_step/2, current_minute_of_day)
-    if (int(steps_to_move) != 0):
-        print("    [Initialization] Steps to move: " + str(steps_to_move))
-
-        target_steps = 2
-
-        while int(target_steps) > 0:
-            # print("The clock is not displaying the correct time, moving " + str(target_steps) + " steps to correct it")
-            move_steps(target_steps)
-            target_steps = _calculate_steps(current_step / 2, current_minute_of_day)
-        
-        print(target_steps)
+    write_last_step(_sanitize_minute(current_clock_minute) * 2)
 
     new_hour = int(current_minute_of_day / 60)
     new_minute = current_minute_of_day % 60
     print("    Clock has been calibrated to " + str(new_hour) + ":" + str(new_minute))
 
 def clock_motor_thread():
-    # time.sleep(minute_seconds)
     while True:
-        # move_steps(2)
-
-        # last_minute = int(time.strftime("%M"))
-        # while (int(time.strftime("%M")) == last_minute):
-        #     time.sleep(0.1)
-        
         target_minute = _sanitize_minute(int(time.strftime("%H")) * 60 + int(time.strftime("%M")))
         step_count = _calculate_steps(current_step/2, target_minute)
         if (step_count > 0):
@@ -232,7 +208,7 @@ def spawn_user_menu():
         initialize_position()
         GPIO.cleanup()
         os.system('sudo systemctl start clock.service')
-        print("    Clock has been calibrated! You can close this now.")
+        print("    Clock has been calibrated, and it is now running! You can close this now.")
     else:
         os.system('sudo systemctl restart clock.service')
         print("    Started clock service!")
