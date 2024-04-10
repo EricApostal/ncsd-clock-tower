@@ -1,8 +1,8 @@
 # The light value that will signal a change in state
 light_threshold = 300
 
-# This should be 60, but it might be nice to set lower for testing
-minute_seconds = 60
+# Max amount of time a motor can move until it just continues
+motor_timeout = 0.5
 
 import RPi.GPIO as GPIO
 import time, serial, threading, atexit, sys, os
@@ -40,7 +40,8 @@ def serial_thread():
                     if new_state != current_state:
                         # print("Light state changed to: " + str(new_state))
                         current_state = new_state
-            except:
+            except not UnicodeDecodeError:
+                print("Error decoding serial data. Skipping...")
                 pass
 
 """
@@ -71,7 +72,6 @@ Move the motor a certain number of steps
 Each step represents 30 seconds
 """
 def move_steps(steps: int):
-    timeout = 0.5
     if (int(steps) == 0):
         return
     
@@ -85,9 +85,9 @@ def move_steps(steps: int):
         last_state = current_state
         started_moving_time = time.time()
         while (current_state == last_state):
-            if (time.time() - started_moving_time) >= timeout:
+            if (time.time() - started_moving_time) >= motor_timeout:
                 print("Step move timed out. This is bad, the light sensor is probably misreading.")
-                break
+                break # maube should exit here
             time.sleep(0.1)
 
             GPIO.output(motor, GPIO.HIGH)
@@ -99,7 +99,7 @@ def move_steps(steps: int):
         if (current_step == 1440):
             current_step = 0
 
-        _curr_min = str(int(current_step / 2 % 60))
+        _curr_min = str(int((current_step / 2) % 60))
         if (len(_curr_min) == 1):
             _curr_min = "0" + _curr_min
 
@@ -158,7 +158,6 @@ Takes the last known step and moves the hand to where it should be
 """
 def boot_recalibrate():
     global current_step
-
     current_step = read_last_step()
 
 def spawn_user_menu():
@@ -166,7 +165,7 @@ def spawn_user_menu():
 
     os.system('clear')
     print(r"""
-    _   _  _____  _____ _____      _____ _      ____   _____ _  __
+     _   _  _____  _____ _____      _____ _      ____   _____ _  __
     | \ | |/ ____|/ ____|  __ \    / ____| |    / __ \ / ____| |/ /
     |  \| | |    | (___ | |  | |  | |    | |   | |  | | |    | ' / 
     | . ` | |     \___ \| |  | |  | |    | |   | |  | | |    |  <  
@@ -215,7 +214,7 @@ def spawn_user_menu():
 if __name__ == '__main__':
     print("Starting clock...")
     if (len(sys.argv) > 2):
-        ValueError("Usage: python3 main.py -c (pass -c if you want to callibrate, otherwise leave blank)")
+        ValueError("Usage: python3 main.py -c (pass -c if you want to calibrate, otherwise leave blank)")
 
     atexit.register(exit_handler)
     init_last_step_file()
