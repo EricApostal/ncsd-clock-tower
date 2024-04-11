@@ -2,48 +2,42 @@
 light_threshold = 300
 
 # Max amount of time a motor can move until it just continues
-motor_timeout = 0.5
+motor_timeout = 10
 
 import RPi.GPIO as GPIO
-import time, serial, threading, atexit, sys, os
-
-ser = serial.Serial('/dev/serial/by-id/usb-Arduino__www.arduino.cc__0042_85734323430351600190-if00', 9600, timeout=1)
-ser.reset_input_buffer()
+import time, threading, atexit, sys, os
 
 GPIO.setwarnings(False)
+GPIO.setmode(GPIO.BOARD)
 
 current_step = 0
 current_state = None
 program_running = True
 _serial = None
 
+photo_sensor_port = 16
+motor_port = 37
+
 """
 Listens for raw analog light resistance values from the Arduino
 """
 def serial_thread():
+    GPIO.setup(photo_sensor_port, GPIO.IN)
     global current_state, program_running
 
     while True:
         if (not program_running):
             return
+        
+        new_state = GPIO.input(photo_sensor_port)
+        if (current_state == None):
+            current_state = new_state
+            print("Initial light state: " + str(new_state))
+            continue
 
-        if ser.in_waiting > 0:
-            try:
-                light_reading = ser.readline().decode('utf-8').rstrip()
-                if (light_reading.isalnum()):
-                    new_state = int(light_reading) < light_threshold
-                    if (current_state == None):
-                        current_state = new_state
-                        # print("Initial light state: " + str(new_state))
-                        continue
-
-                    if new_state != current_state:
-                        # print("Light state changed to: " + str(new_state))
-                        current_state = new_state
-            except not UnicodeDecodeError:
-                print("Error decoding serial data. Skipping...")
-                pass
-
+        if new_state != current_state:
+            print("Light state changed to: " + str(new_state))
+            current_state = new_state
 """
 Runs on program exit. Used to prevent potential GPIO errors.
 """
@@ -77,20 +71,17 @@ def move_steps(steps: int):
     
     global current_step
 
-    motor = 11
-
-    GPIO.setmode(GPIO.BOARD)
-    GPIO.setup(motor, GPIO.OUT)
+    GPIO.setup(motor_port, GPIO.OUT)
     for _ in range(int(steps)):
         last_state = current_state
         started_moving_time = time.time()
         while (current_state == last_state):
             if (time.time() - started_moving_time) >= motor_timeout:
                 print("Step move timed out. This is bad, the light sensor is probably misreading.")
-                break # maube should exit here
+                break # maybe should exit here
             time.sleep(0.1)
 
-            GPIO.output(motor, GPIO.HIGH)
+            GPIO.output(motor_port, GPIO.HIGH)
 
         current_step += 1
 
@@ -107,7 +98,7 @@ def move_steps(steps: int):
         print("Moved to time " + str(step_time_formatted))
         write_last_step(current_step)
 
-    GPIO.output(motor, GPIO.LOW)
+    GPIO.output(motor_port, GPIO.LOW)
 
 def _sanitize_minute(minute: int):
     # we want to translate every time to a 12 hour scale to prevent excess
