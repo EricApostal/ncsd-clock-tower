@@ -4,6 +4,9 @@ light_threshold = 300
 # Max amount of time a motor can move until it just continues
 motor_timeout = 10
 
+photo_sensor_port = 16
+motor_port = 37
+
 import RPi.GPIO as GPIO
 import time, threading, atexit, sys, os
 
@@ -14,9 +17,7 @@ current_step = 0
 current_state = None
 program_running = True
 _serial = None
-
-photo_sensor_port = 16
-motor_port = 37
+last_step_path = "/home/raspberrypi/Documents/last_step.txt"
 
 """
 Listens for raw analog light resistance values from the Arduino
@@ -32,11 +33,11 @@ def serial_thread():
         new_state = GPIO.input(photo_sensor_port)
         if (current_state == None):
             current_state = new_state
-            print("Initial light state: " + str(new_state))
+            # print("Initial light state: " + str(new_state))
             continue
 
         if new_state != current_state:
-            print("Light state changed to: " + str(new_state))
+            # print("Light state changed to: " + str(new_state))
             current_state = new_state
 """
 Runs on program exit. Used to prevent potential GPIO errors.
@@ -47,18 +48,18 @@ def exit_handler():
 
 def init_last_step_file():
     try:
-        with open("/home/pi/Documents/last_step.txt", "r") as f:
+        with open(last_step_path, "r") as f:
             return
     except FileNotFoundError:
-        with open("/home/pi/Documents/last_step.txt", "w") as f:
+        with open(last_step_path, "w") as f:
             f.write("0")
 
 def write_last_step(state: int):
-    with open("/home/pi/Documents/last_step.txt", "w") as f:
+    with open(last_step_path, "w") as f:
         f.write(str(state))
 
 def read_last_step():
-    with open("/home/pi/Documents/last_step.txt", "r") as f:
+    with open(last_step_path, "r") as f:
         return int(f.read())
 
 """

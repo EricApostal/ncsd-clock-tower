@@ -1,6 +1,6 @@
 # How to run
 ```bash
-scp ncssm_clock.py root@10.50.60.181:/home/pi/Documents/clock-tower
+scp ncssm_clock.py root@10.50.12.69:/home/raspberrypi/Documents/clock-tower
 ```
 
 # Logic
