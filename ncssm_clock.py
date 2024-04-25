@@ -164,9 +164,10 @@ def spawn_user_menu():
     | |\  | |____ ____) | |__| |  | |____| |___| |__| | |____| . \ 
     |_| \_|\_____|_____/|_____/    \_____|______\____/ \_____|_|\_\
           
+    Programmed by Eric Apostal and Christopher Holley
     Powered by NCSSM
-    Programmed by Eric Apostal
     """)
+    
     print("""
     Welcome to the clock control panel. What would you like to do?
     [1] Calibrate the clock
