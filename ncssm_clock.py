@@ -2,11 +2,14 @@
 # Max amount of time a motor can move until it just continues
 motor_timeout = 10
 
+# the gpio input for the photo sensor
 photo_sensor_port = 16
+
+# gpio output for the motor
 motor_port = 37
 
 import RPi.GPIO as GPIO
-import time, threading, atexit, sys, os
+import time, threading, atexit, sys, os, subprocess
 
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BOARD)
@@ -15,20 +18,40 @@ current_step = 0
 current_state = None
 program_running = True
 _serial = None
-last_step_path = "/home/raspberrypi/Documents/last_step.txt"
+
+# This is where the last known step is stored. This is how we keep track of the clock's position, even if the program is restarted.
+last_step_path = "/home/eric/Documents/last_step.txt"
+
+# Just some simple styling colors. I use this in the clock status bit of the menu.
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 
 """
 Sets the system time to the user's input
 """
 def set_system_time():
-    print("Enter the current time (HH:MM format):")
+    print("    Enter the current time (HH:MM format):")
     user_time = input("    [USER]: ")
+    # ensure input is correct
+    if (len(user_time) != 5 or user_time[2] != ":") or (not user_time[:2].isdigit() or not user_time[3:].isdigit()):
+        print("    Invalid input. Please enter the time in HH:MM format.")
+        return set_system_time()
 
     try:
         os.system(f"sudo date -s {user_time}")
-        print("System time set successfully!")
+        print("    System time set successfully!")
+        print("    Note that it will take at most a minute for the system time to reflect this change!")
     except Exception as e:
-        print(f"Error setting system time: {e}")
+        print(f"    Error setting system time: {e}")
 
 """
 Listen for changes in the digital signal from the photo sensor
@@ -74,6 +97,15 @@ def read_last_step():
     with open(last_step_path, "r") as f:
         return int(f.read())
 
+def output_clock_status(current_tense = False):
+    is_running = os.system('systemctl is-active --quiet clock') == 0 
+    status = "running" if is_running else "stopped"
+    color = bcolors.OKCYAN if is_running else bcolors.FAIL
+    tense = "now" if current_tense else "currently"
+
+    print(f"    The clock is {tense} {color}{bcolors.BOLD}{status}{bcolors.ENDC}!")
+    
+
 """
 Move the motor a certain number of steps
 Each step represents 30 seconds
@@ -90,7 +122,7 @@ def move_steps(steps: int):
         started_moving_time = time.time()
         while (current_state == last_state):
             if (time.time() - started_moving_time) >= motor_timeout:
-                print("Step move timed out. This is bad, the light sensor is probably misreading.")
+                print("    Step move timed out. This is bad, the light sensor is probably misreading.")
                 break # maybe should exit here
             time.sleep(0.1)
 
@@ -116,6 +148,8 @@ def move_steps(steps: int):
 def _sanitize_minute(minute: int):
     # we want to translate every time to a 12 hour scale to prevent excess
     # movement (since a clock only has 12 hours, and a day has 24)
+
+    # for example, if it is 1:00 PM, we can say that we are on hour 13, and just subtract 12, which is functionally the same deal
 
     if (minute >= 720):
         minute -= 720
@@ -155,6 +189,7 @@ def clock_motor_thread():
             print("Moving " + str(step_count) + " steps")
             move_steps(step_count)
 
+        # I'm not too proud of this, polling for the next minute isn't super great.
         time.sleep(0.1)
 
 """
@@ -164,6 +199,12 @@ def boot_recalibrate():
     global current_step
     current_step = read_last_step()
 
+"""
+The bit the user interacts with.
+
+This will only run if the script is started with "-m",
+which is handled automatically by the bash script that is on the desktop.
+"""
 def spawn_user_menu():
     global program_running
 
@@ -179,12 +220,16 @@ def spawn_user_menu():
     Programmed by Eric Apostal and Christopher Holley
     Powered by NCSSM
     """)
+
+    output_clock_status()
     
     print("""
     Welcome to the clock control panel. What would you like to do?
     [1] Calibrate the clock
     [2] Start the clock service
     [3] Stop the clock service
+    [4] Set the system time
+    [5] Exit
     """)
 
     """
@@ -192,11 +237,14 @@ def spawn_user_menu():
     (1) Calibrating the clock will allow you to set the clock to a certain time. You should ideally only have to do this once ever.
     (2) Starting the clock will just start the clock from the last known position. While you can start it manually, it should already be running right now.
     (3) Stopping the clock will stop the clock from running. You can start it again by re-opening this menu, and selecting option 2.
-    (4) Set the system time.
+    (4) Set the system time. The pi can sometimes desync a bit. This will set the system time to the user's input.
+    (5) Exit the menu.
     """
 
-    acceptable_input = ["1", "2", "3", "4"]
+    acceptable_input = ["1", "2", "3", "4", "5"]
     user_input = input("    [USER]: ")
+
+    clock_status_changed = False
 
     while user_input not in acceptable_input:
         print("    Invalid input. Please try again.")
@@ -215,14 +263,20 @@ def spawn_user_menu():
         
         print("    Error starting clock service. Assuming it's enabled already.")
         print("    Service is running! You can close this now. Feel free to check on the service by running 'sudo systemctl status clock.service'.")
+
+        clock_status_changed = True
     elif user_input == "3":
         os.system('sudo systemctl stop clock.service')
         print("    Stopped clock service. You can close this now.")
-    elif user_input == "4":
-        print("Setting the time isn't implemented yet! If you are the user and recieve this error message, sorry! I meant to implement this.")
-        # os.system('sudo date')
-        # print("    System time has been set. You can close this now.")
 
+        clock_status_changed = True
+    elif user_input == "4":
+        set_system_time()
+    elif user_input == "5":
+        pass
+
+    os.system("clear")
+    output_clock_status(current_tense = clock_status_changed)
     print("    Everything executed successfully! This menu will close in 3 seconds...")
     time.sleep(3)
 
