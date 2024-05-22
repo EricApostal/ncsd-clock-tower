@@ -1,6 +1,5 @@
 [Unit]
 Description=NCSSM Clock Tower Service
-StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -8,3 +7,6 @@ Restart=always
 RestartSec=1
 User=raspberrypi
 ExecStart=/usr/bin/python3 /home/raspberrypi/Documents/clock-tower/ncssm_clock.py
+
+[Install]
+WantedBy=multi-user.target

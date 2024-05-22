@@ -1,5 +1,3 @@
-# The light value that will signal a change in state
-light_threshold = 300
 
 # Max amount of time a motor can move until it just continues
 motor_timeout = 10
@@ -20,7 +18,7 @@ _serial = None
 last_step_path = "/home/raspberrypi/Documents/last_step.txt"
 
 """
-Listens for raw analog light resistance values from the Arduino
+Listen for changes in the digital signal from the photo sensor
 """
 def serial_thread():
     GPIO.setup(photo_sensor_port, GPIO.IN)
@@ -39,6 +37,7 @@ def serial_thread():
         if new_state != current_state:
             # print("Light state changed to: " + str(new_state))
             current_state = new_state
+
 """
 Runs on program exit. Used to prevent potential GPIO errors.
 """
@@ -171,16 +170,19 @@ def spawn_user_menu():
     print("""
     Welcome to the clock control panel. What would you like to do?
     [1] Calibrate the clock
-    [2] Just start the clock
+    [2] Start the clock service
+    [3] Stop the clock service
     """)
 
     """
     Info:
     (1) Calibrating the clock will allow you to set the clock to a certain time. You should ideally only have to do this once ever.
     (2) Starting the clock will just start the clock from the last known position. While you can start it manually, it should already be running right now.
+    (3) Stopping the clock will stop the clock from running. You can start it again by re-opening this menu, and selecting option 2.
+    (4) Set the system time.
     """
 
-    acceptable_input = ["1", "2"]
+    acceptable_input = ["1", "2", "3", "4"]
     user_input = input("    [USER]: ")
 
     while user_input not in acceptable_input:
@@ -194,12 +196,22 @@ def spawn_user_menu():
         GPIO.cleanup()
         os.system('sudo systemctl start clock.service')
         print("    Clock has been calibrated, and it is now running! You can close this now.")
-    else:
+    elif user_input == "2":
         os.system('sudo systemctl restart clock.service')
         print("    Started clock service!")
         
         print("    Error starting clock service. Assuming it's enabled already.")
         print("    Service is running! You can close this now. Feel free to check on the service by running 'sudo systemctl status clock.service'.")
+    elif user_input == "3":
+        os.system('sudo systemctl stop clock.service')
+        print("    Stopped clock service. You can close this now.")
+    elif user_input == "4":
+        print("Setting the time isn't implemented yet! If you are the user and recieve this error message, sorry! I meant to implement this.")
+        # os.system('sudo date')
+        # print("    System time has been set. You can close this now.")
+
+    print("    Everything executed successfully! This menu will close in 3 seconds...")
+    time.sleep(3)
 
     program_running = False
     _serial.join()
