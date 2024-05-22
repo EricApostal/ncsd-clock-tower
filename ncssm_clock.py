@@ -20,7 +20,7 @@ program_running = True
 _serial = None
 
 # This is where the last known step is stored. This is how we keep track of the clock's position, even if the program is restarted.
-last_step_path = "/home/eric/Documents/last_step.txt"
+last_step_path = "/home/raspberrypi/Documents/last_step.txt"
 
 # Just some simple styling colors. I use this in the clock status bit of the menu.
 class bcolors:
@@ -205,7 +205,16 @@ The bit the user interacts with.
 This will only run if the script is started with "-m",
 which is handled automatically by the bash script that is on the desktop.
 """
-def spawn_user_menu():
+def spawn_user_menu(respawning = False, custom_status = None):
+    if (respawning):
+        os.system("clear")
+        output_clock_status()
+        if (custom_status != None):
+            print(custom_status)
+
+        print("    Everything executed successfully! This menu will close in 3 seconds...")
+        time.sleep(3)
+
     global program_running
 
     os.system('clear')
@@ -229,9 +238,11 @@ def spawn_user_menu():
     [2] Start the clock service
     [3] Stop the clock service
     [4] Set the system time
-    [5] Exit
+    [5] Exit menu
     """)
 
+
+    # Just some extra information for those looking through the source
     """
     Info:
     (1) Calibrating the clock will allow you to set the clock to a certain time. You should ideally only have to do this once ever.
@@ -244,8 +255,6 @@ def spawn_user_menu():
     acceptable_input = ["1", "2", "3", "4", "5"]
     user_input = input("    [USER]: ")
 
-    clock_status_changed = False
-
     while user_input not in acceptable_input:
         print("    Invalid input. Please try again.")
         user_input = input("    [USER]: ")
@@ -254,31 +263,24 @@ def spawn_user_menu():
         os.system('sudo systemctl stop clock.service')
         print("    Calibrating...")
         initialize_position()
-        GPIO.cleanup()
         os.system('sudo systemctl start clock.service')
-        print("    Clock has been calibrated, and it is now running! You can close this now.")
+        spawn_user_menu(True, "    Clock has been calibrated, and it is now running!")
+
     elif user_input == "2":
         os.system('sudo systemctl restart clock.service')
-        print("    Started clock service!")
-        
-        print("    Error starting clock service. Assuming it's enabled already.")
-        print("    Service is running! You can close this now. Feel free to check on the service by running 'sudo systemctl status clock.service'.")
+        spawn_user_menu(True)
 
-        clock_status_changed = True
     elif user_input == "3":
         os.system('sudo systemctl stop clock.service')
-        print("    Stopped clock service. You can close this now.")
+        spawn_user_menu(True)
 
-        clock_status_changed = True
     elif user_input == "4":
         set_system_time()
+        spawn_user_menu(True, "    Set the system time!")
+        
     elif user_input == "5":
+        # This is valid, just a placeholder :D
         pass
-
-    os.system("clear")
-    output_clock_status(current_tense = clock_status_changed)
-    print("    Everything executed successfully! This menu will close in 3 seconds...")
-    time.sleep(3)
 
     program_running = False
     _serial.join()

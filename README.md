@@ -2,8 +2,8 @@
 
 pi 3
 ```bash
-scp ncssm_clock.py eric@10.50.43.41:/home/eric/Documents/clock-tower
-scp clock.service eric@10.50.43.41:/home/eric/Desktop
+scp ncssm_clock.py raspberrypi@10.50.43.41:/home/eric/Documents/clock-tower
+scp clock.service raspberrypi@10.50.43.41:/home/eric/Desktop
 ```
 
 pi 4
