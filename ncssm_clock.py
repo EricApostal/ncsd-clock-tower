@@ -18,6 +18,19 @@ _serial = None
 last_step_path = "/home/raspberrypi/Documents/last_step.txt"
 
 """
+Sets the system time to the user's input
+"""
+def set_system_time():
+    print("Enter the current time (HH:MM format):")
+    user_time = input("    [USER]: ")
+
+    try:
+        os.system(f"sudo date -s {user_time}")
+        print("System time set successfully!")
+    except Exception as e:
+        print(f"Error setting system time: {e}")
+
+"""
 Listen for changes in the digital signal from the photo sensor
 """
 def serial_thread():
