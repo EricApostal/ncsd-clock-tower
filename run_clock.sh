@@ -1,0 +1,1 @@
+/usr/bin/python3 /home/raspberrypi/Documents/clock-tower/ncssm_clock.py -m

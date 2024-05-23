@@ -9,7 +9,7 @@ photo_sensor_port = 16
 motor_port = 37
 
 import RPi.GPIO as GPIO
-import time, threading, atexit, sys, os, subprocess
+import time, threading, atexit, sys, os
 
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BOARD)
